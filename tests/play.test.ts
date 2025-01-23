@@ -38,9 +38,9 @@ describe("play contract", () => {
         const setDeveloperCall = simnet.callPublicFn(
             "play",
             "set-developer-address",
-            [Cl.principal(wallet2)],
+            [Cl.principal(wallet1)],
             wallet1
         );
-        expect(setDeveloperCall.result).toBeOk(Cl.bool(true));
+        expect(setDeveloperCall.result).toBeErr(Cl.bool(true));
     });
 });
