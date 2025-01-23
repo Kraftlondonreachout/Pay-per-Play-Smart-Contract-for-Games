@@ -37,7 +37,7 @@
 ;; admin functions
 (define-public (set-developer-address (new-address principal))
     (begin
-        (asserts! (is-eq tx-sender CONTRACT-OWNER) (err u100))
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) (err true))
         (ok (var-set developer-address new-address))
     )
 )
