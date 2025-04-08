@@ -52,6 +52,6 @@ plan:
         - emulated-contract-publish:
             contract-name: play
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            path: contracts/play.clar
+            path: "contracts\\play.clar"
             clarity-version: 3
       epoch: "3.1"

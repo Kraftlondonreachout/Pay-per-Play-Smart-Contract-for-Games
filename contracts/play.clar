@@ -381,3 +381,57 @@
         (ok event-id)
     )
 )
+
+
+
+;; Add to data vars
+(define-data-var rewards-threshold uint u10) ;; Number of plays needed for reward
+(define-data-var reward-bonus uint u2000000) ;; 2 STX reward
+
+;; Add to data maps
+(define-map player-rewards 
+    { player: principal } 
+    { plays-count: uint, rewards-claimed: uint }
+)
+
+(define-public (claim-loyalty-reward)
+    (let 
+        ((player-data (default-to {plays-count: u0, rewards-claimed: u0} 
+            (map-get? player-rewards {player: tx-sender})))
+         (current-plays (default-to u0 (map-get? player-sessions tx-sender))))
+        
+        (asserts! (>= current-plays (+ (* (get rewards-claimed player-data) (var-get rewards-threshold)) 
+            (var-get rewards-threshold))) (err u1))
+            
+        (try! (stx-transfer? (var-get reward-bonus) (var-get developer-address) tx-sender))
+        
+        (map-set player-rewards 
+            {player: tx-sender}
+            {plays-count: current-plays, 
+             rewards-claimed: (+ (get rewards-claimed player-data) u1)})
+        (ok true)
+    )
+)
+
+
+
+;; Add to data vars
+(define-data-var pass-price uint u50000000) ;; 50 STX
+(define-data-var pass-duration uint u144) ;; 24 hours in blocks
+
+;; Add to data maps
+(define-map game-passes
+    { holder: principal }
+    { expiry: uint }
+)
+
+(define-public (purchase-game-pass)
+    (begin
+        (try! (stx-transfer? (var-get pass-price) tx-sender (var-get developer-address)))
+        (map-set game-passes
+            {holder: tx-sender}
+            {expiry: (+ stacks-block-height (var-get pass-duration))})
+        (ok true)
+    )
+)
+
