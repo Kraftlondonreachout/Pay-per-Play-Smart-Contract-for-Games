@@ -435,3 +435,169 @@
     )
 )
 
+(define-map player-levels
+    { player: principal }
+    { 
+        level: uint,
+        experience: uint
+    }
+)
+
+(define-data-var exp-per-game uint u100)
+(define-data-var exp-per-level uint u1000)
+(define-data-var max-level uint u50)
+
+(define-public (add-experience (game-score uint))
+    (let (
+        (current-data (default-to { level: u1, experience: u0 } 
+            (map-get? player-levels { player: tx-sender })))
+        (new-exp (+ (get experience current-data) (var-get exp-per-game)))
+        (current-level (get level current-data))
+    )
+        (asserts! (<= current-level (var-get max-level)) (err u2000))
+        
+        (if (>= new-exp (var-get exp-per-level))
+            (map-set player-levels 
+                { player: tx-sender }
+                { 
+                    level: (+ current-level u1),
+                    experience: (- new-exp (var-get exp-per-level))
+                }
+            )
+            (map-set player-levels 
+                { player: tx-sender }
+                { 
+                    level: current-level,
+                    experience: new-exp
+                }
+            )
+        )
+        (ok true)
+    )
+)
+
+(define-map daily-challenges
+    { challenge-id: uint }
+    { 
+        name: (string-ascii 50),
+        target-score: uint,
+        reward: uint,
+        active: bool
+    }
+)
+
+(define-data-var challenge-counter uint u0)
+
+(define-map challenge-completions
+    { player: principal, day: uint }
+    { completed: bool }
+)
+
+(define-data-var challenge-reward uint u5000000)
+(define-public (create-daily-challenge (name (string-ascii 50)) (target-score uint) (reward uint))
+    (let (
+        (challenge-id (var-get challenge-counter))
+        (today-block (/ stacks-block-height u144))
+    )
+        (map-set daily-challenges 
+            { challenge-id: challenge-id }
+            { 
+                name: name,
+                target-score: target-score,
+                reward: reward,
+                active: true
+            }
+        )
+        (var-set challenge-counter (+ challenge-id u1))
+        (ok true)
+    )
+)
+(define-public (activate-daily-challenge (challenge-id uint))
+    (let (
+        (challenge (unwrap! (map-get? daily-challenges { challenge-id: challenge-id }) (err u1000)))
+    )
+        (asserts! (not (get active challenge)) (err u1001))
+        (map-set daily-challenges 
+            { challenge-id: challenge-id }
+            { 
+                name: (get name challenge),
+                target-score: (get target-score challenge),
+                reward: (get reward challenge),
+                active: true
+            }
+        )
+        (ok true)
+    )
+)
+(define-public (deactivate-daily-challenge (challenge-id uint))
+    (let (
+        (challenge (unwrap! (map-get? daily-challenges { challenge-id: challenge-id }) (err u1000)))
+    )
+        (asserts! (get active challenge) (err u1001))
+        (map-set daily-challenges 
+            { challenge-id: challenge-id }
+            { 
+                name: (get name challenge),
+                target-score: (get target-score challenge),
+                reward: (get reward challenge),
+                active: false
+            }
+        )
+        (ok true)
+    )
+)
+(define-public (get-daily-challenge (challenge-id uint))
+    (let (
+        (challenge (unwrap! (map-get? daily-challenges { challenge-id: challenge-id }) (err u1000)))
+    )
+        (ok challenge)
+    )
+)
+(define-public (get-challenge-completion (challenge-id uint))
+    (let (
+        (challenge (unwrap! (map-get? daily-challenges { challenge-id: challenge-id }) (err u1000)))
+        (today-block (/ stacks-block-height u144))
+    )
+        (ok (default-to false (get completed (map-get? challenge-completions { player: tx-sender, day: today-block }))))
+    )
+)
+(define-public (get-challenge-completion-status (challenge-id uint) (player principal))
+    (let (
+        (challenge (unwrap! (map-get? daily-challenges { challenge-id: challenge-id }) (err u1000)))
+        (today-block (/ stacks-block-height u144))
+    )
+        (ok (default-to false (get completed (map-get? challenge-completions { player: player, day: today-block }))))
+    )
+)
+(define-public (get-challenge-completion-status-by-day (challenge-id uint) (day uint))
+    (let (
+        (challenge (unwrap! (map-get? daily-challenges { challenge-id: challenge-id }) (err u1000)))
+    )
+        (ok (default-to false (get completed (map-get? challenge-completions { player: tx-sender, day: day }))))
+    )
+)
+(define-public (get-challenge-completion-status-by-day-and-player (challenge-id uint) (day uint) (player principal))
+    (let (
+        (challenge (unwrap! (map-get? daily-challenges { challenge-id: challenge-id }) (err u1000)))
+    )
+        (ok (default-to false (get completed (map-get? challenge-completions { player: player, day: day }))))
+    )
+)
+    
+
+
+(define-public (complete-daily-challenge (challenge-id uint) (score uint))
+    (let (
+        (challenge (unwrap! (map-get? daily-challenges { challenge-id: challenge-id }) (err u1001)))
+        (today-block (/ stacks-block-height u144))
+    )
+        (asserts! (get active challenge) (err u1002))
+        (asserts! (>= score (get target-score challenge)) (err u1003))
+        (asserts! (not (default-to false (get completed (map-get? challenge-completions { player: tx-sender, day: today-block })))) (err u1004))
+        
+        (try! (stx-transfer? (get reward challenge) (var-get developer-address) tx-sender))
+        (map-set challenge-completions { player: tx-sender, day: today-block } { completed: true })
+        (ok true)
+    )
+)
+
