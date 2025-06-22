@@ -601,3 +601,110 @@
     )
 )
 
+(define-data-var base-price uint u1000000)
+(define-data-var price-multiplier uint u100)
+(define-data-var demand-threshold uint u10)
+(define-data-var time-based-discount uint u20)
+
+(define-map hourly-play-count
+    { hour: uint }
+    { plays: uint }
+)
+
+(define-map price-history
+    { block-height: uint }
+    { price: uint }
+)
+
+(define-private (get-current-hour)
+    (mod (/ stacks-block-height u6) u24)
+)
+
+(define-private (get-hourly-plays)
+    (default-to u0 (get plays (map-get? hourly-play-count { hour: (get-current-hour) })))
+)
+
+(define-private (calculate-demand-multiplier)
+    (let ((current-plays (get-hourly-plays)))
+        (if (> current-plays (var-get demand-threshold))
+            (+ u100 (* (- current-plays (var-get demand-threshold)) u10))
+            u100
+        )
+    )
+)
+
+(define-private (calculate-time-discount)
+    (let ((hour (get-current-hour)))
+        (if (or (< hour u8) (> hour u22))
+            (- u100 (var-get time-based-discount))
+            u100
+        )
+    )
+)
+
+(define-private (get-dynamic-price)
+    (let (
+        (base (var-get base-price))
+        (demand-mult (calculate-demand-multiplier))
+        (time-mult (calculate-time-discount))
+    )
+        (/ (* (* base demand-mult) time-mult) u10000)
+    )
+)
+
+(define-private (update-hourly-count)
+    (let (
+        (current-hour (get-current-hour))
+        (current-plays (get-hourly-plays))
+    )
+        (map-set hourly-play-count
+            { hour: current-hour }
+            { plays: (+ current-plays u1) }
+        )
+    )
+)
+
+(define-public (start-dynamic-game-session)
+    (let (
+        (current-price (get-dynamic-price))
+    )
+        (try! (stx-transfer? current-price tx-sender (var-get developer-address)))
+        (update-hourly-count)
+        (map-set price-history
+            { block-height: stacks-block-height }
+            { price: current-price }
+        )
+        (map-set player-sessions tx-sender 
+            (+ (default-to u0 (map-get? player-sessions tx-sender)) u1))
+        (ok current-price)
+    )
+)
+
+(define-read-only (get-current-price)
+    (ok (get-dynamic-price))
+)
+
+(define-read-only (get-price-factors)
+    (ok {
+        base-price: (var-get base-price),
+        demand-multiplier: (calculate-demand-multiplier),
+        time-multiplier: (calculate-time-discount),
+        current-hour: (get-current-hour),
+        hourly-plays: (get-hourly-plays)
+    })
+)
+
+(define-public (set-pricing-parameters (new-base-price uint) (new-multiplier uint) (new-threshold uint) (new-discount uint))
+    (begin
+        (asserts! (is-eq tx-sender CONTRACT-OWNER) (err u5000))
+        (var-set base-price new-base-price)
+        (var-set price-multiplier new-multiplier)
+        (var-set demand-threshold new-threshold)
+        (var-set time-based-discount new-discount)
+        (ok true)
+    )
+)
+
+(define-read-only (get-price-history (block-heigh uint))
+    (ok (map-get? price-history { block-height: stacks-block-height }))
+)
