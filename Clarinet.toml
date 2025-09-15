@@ -1,0 +1,40 @@
+[project]
+name = 'Pay-per-Play'
+description = ''
+authors = []
+telemetry = true
+cache_dir = '.\.cache'
+requirements = []
+[contracts.play]
+path = 'contracts/play.clar'
+clarity_version = 3
+epoch = 3.1
+[repl.analysis]
+passes = ['check_checker']
+
+[contracts.reputation]
+path = 'contracts/reputation.clar'
+clarity_version = 3
+epoch = 3.1
+[repl.reputation]
+passes = ['check_checker']
+
+[contracts.analytics]
+path = 'contracts/analytics.clar'
+clarity_version = 3
+epoch = 3.1
+[repl.analytics]
+passes = ['check_checker']
+
+[contracts.session-recovery]
+path = 'contracts/session-recovery.clar'
+clarity_version = 3
+epoch = 3.1
+[repl.session-recovery]
+passes = ['check_checker']
+
+[repl.analysis.check_checker]
+strict = false
+trusted_sender = false
+trusted_caller = false
+callee_filter = false
