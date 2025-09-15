@@ -64,4 +64,9 @@ plan:
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: "contracts\\reputation.clar"
             clarity-version: 3
+        - emulated-contract-publish:
+            contract-name: session-recovery
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: "contracts\\session-recovery.clar"
+            clarity-version: 3
       epoch: "3.1"
